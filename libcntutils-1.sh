@@ -10,12 +10,17 @@ set -o pipefail
 IAM="${IAM:-${0##*/}}"
 
 libcntutils.version() {
+  # This is intended to be overridden with a "real" version() function.
+
   local VERSION x
   read -r VERSION x < <(sha1sum "${0}") # take that semver!
   [ -n "${VERSION}" ] && echo "${IAM} version ${VERSION}"
 }
 
 libcntutils.serialize() {
+  # $*: array variable names.  Print the values of the arrays $*, one
+  # value per line.
+
   local ARGV; for ARGV in "${@}"; do
     declare -n ARRAY="${ARGV}"
     (( "${#ARRAY[@]}" > 0 )) && printf '%s\n' "${ARRAY[@]}"
@@ -23,6 +28,10 @@ libcntutils.serialize() {
 }
 
 libcntutils.datemark() {
+  # Read lines from stdin, add a custom prefix to each line of input and
+  # print the line to stdout (somewhat like ts(1), typically packaged in
+  # 'moreutils').
+
   local LINE HOST="${HOSTNAME:-$(hostname -s)}" IAM="${CNAME:-${IAM}}"
   local LINE; while read -r LINE; do
     [ -n "${LINE}" ] && printf '%s %s %s[%d]: %s\n' \
@@ -31,18 +40,22 @@ libcntutils.datemark() {
 }
 
 libcntutils.randompassword() {
+  # $1: unset or number of random character to generate, default is 16.
+  # Print a random string of characters from [:allnum:] of length $1.
+
   printf '%s\n' \
     "$(LC_ALL=C tr -dc '[:alnum:]' </dev/urandom |head -c "${1:-16}")"
 }
 
 libcntutils.stringtodecimal() {
-  # Convert stdin bytes to integers, concatenate
+  # Convert stdin bytes to integers, concatenate.
+
   [ ! -t '0' ] && od -v -A none -t d1 |tr -dc '[:alnum:]'
 }
 
 libcntutils.mapint16(){
-  # $*: seed value.  Write a stable "hash-like" mapping of the seed value $*
-  # into the 16bit integer range 0,..,2^16-1.
+  # $*: seed value.  Write a stable "hash-like" mapping of the seed
+  # value $* into the 16bit integer range 0,..,2^16-1.
 
   local SEED="${*:?}"; read -r SEED x < <(md5sum <<<"${SEED}")
 
@@ -55,7 +68,7 @@ libcntutils.mapint16(){
 
 libcntutils.accessibleport(){
   # $*: seed value.  Map to 14bit integer range 49152,...,65535.
-  # General idea: these ports are accessible on the host to use.
+  # General idea: these ports are accessible on the host.
 
   declare -i OFFSET="$(mapint16 "${*:?}")"
 
@@ -90,8 +103,8 @@ libcntutils.setenv() {
 }
 
 libcntutils.clean() {
-  # $1: unset or a bash pattern matching pattern, $2: unset or replacement
-  # string.  Remove characters matching the pattern $1 from lines of stdin,
+  # $1: unset or a bash glob pattern, $2: unset or replacement string.
+  # Remove characters matching the pattern $1 from lines of stdin,
   # optionally replacing them with the replacement string $2.
 
   local ALLOWED="${1:-[:alnum:]}" REPLACEMENT="${2}"
@@ -109,8 +122,8 @@ libcntutils.clean() {
 }
 
 libcntutils.fclean() {
-  # $1: some probably unsafe "file name like" string.  Output a file name
-  # safe version of $1.
+  # $1: some probably unsafe "file name like" string.  Output a file
+  # name safe version of $1.
 
   local INPUT="${*:?}"
   clean '[:alnum:]_+-' '_' <<<"${INPUT}"
@@ -197,7 +210,7 @@ libcntutils.containerid() {
 
 libcntutils.showpublish() {
   # $1: indexed array name.  Assume the array $1 contains podman-run(1)
-  # '---publish' arguments; print a concise representation to stdout.
+  # '--publish' arguments; print a concise representation to stdout.
 
   declare -n ARRAY="${1:?}"; [[ -n "${ARRAY}" ]] || return 1
   declare -a PORTMAP; local PORTMAPSTRING
